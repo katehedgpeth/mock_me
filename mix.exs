@@ -30,8 +30,9 @@ defmodule MockMe.MixProject do
       {:credo, "~> 1.0.0", [only: [:dev, :test], runtime: false]},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:httpoison, "~> 1.7", [only: [:dev, :test], runtime: false]},
-      {:plug, "~> 1.11"},
-      {:plug_cowboy, "~> 2.0"}
+      {:plug, "~> 1.14"},
+      {:plug_cowboy, "~> 2.0"},
+      {:jason, "~> 1.4"}
     ]
   end
 

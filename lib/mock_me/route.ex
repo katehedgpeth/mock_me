@@ -24,18 +24,28 @@ defmodule MockMe.Route do
     `responses:` must be an empty list or a list of %MockMe.Response{}
   """
   alias MockMe.Response
-  @enforce_keys [:name, :path]
 
+  @type t :: %__MODULE__{
+          name: atom(),
+          path: String.t(),
+          method: :get | :post | :put | :delete | :options,
+          content_type: String.t(),
+          responses: %{
+            atom() => Response.t()
+          }
+        }
+
+  @enforce_keys [:name, :path]
   defstruct [
     :name,
     :path,
     method: :get,
     content_type: "application/json",
-    responses: [
-      %Response{
+    responses: %{
+      success: %Response{
         flag: :success,
         body: "Congrats! The request was a success."
       }
-    ]
+    }
   ]
 end

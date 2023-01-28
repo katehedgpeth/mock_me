@@ -4,35 +4,43 @@ defmodule MockMe.ResponsePlug do
   """
   import Plug.Conn
   require Logger
+  require Jason
+  alias MockMe.{State, Response, Route}
 
   def init(options), do: options
 
-  def call(%{assigns: %{route: route}} = conn, _opts) do
-    conn = put_resp_header(conn, "content-type", route.content_type)
-    flag_value = MockMe.flag_value(route.name)
+  def call(
+        %{
+          assigns: %{
+            route: %Route{name: name, content_type: content_type, responses: responses}
+          }
+        } = conn,
+        _opts
+      ) do
+    conn = put_resp_header(conn, "content-type", content_type)
+    current_flag = State.current_route_flag(name)
 
-    response =
-      Enum.find(route.responses, fn res ->
-        res.flag == flag_value
-      end)
+    responses
+    |> Map.fetch(current_flag)
+    |> case do
+      :error ->
+        Logger.error("No mock for test_case [#{name}, #{current_flag}]")
 
-    case response do
-      nil ->
-        Logger.error("No mock for test_case [#{route.name}, #{flag_value}]")
-
-        conn
-        |> send_resp(
+        send_resp(
+          conn,
           500,
-          "{\"data\":\"there's no mock for that test case [#{route.name}, #{flag_value}]\"}"
+          Jason.encode!(%{
+            data: %{message: "Mock not found", route_name: name, flag: current_flag}
+          })
         )
 
-      res ->
+      {:ok, %Response{} = response} ->
         conn
-        |> set_response_headers(res)
-        |> set_response_cookies(res)
+        |> set_response_headers(response)
+        |> set_response_cookies(response)
         |> send_resp(
-          res.status_code,
-          res.body
+          response.status_code,
+          response.body
         )
     end
   end

@@ -3,35 +3,37 @@ defmodule MockMeTest do
   use ExUnit.Case
   doctest MockMe
 
+  @moduletag :capture_log
+
   describe "state agent" do
     test "has started" do
       assert MockMe.set_response(:jwt, :failure)
-      assert MockMe.flag_value(:jwt) == :failure
+      assert MockMe.current_route_flag(:jwt) == :failure
     end
 
     test "set_response/2" do
       assert MockMe.set_response(:test_me, :failure)
 
-      assert MockMe.flag_value(:test_me) == :failure
+      assert MockMe.current_route_flag(:test_me) == :failure
     end
 
     test "set_response/2 ignores unset flags" do
       assert MockMe.set_response(:no_flag, :bogus)
 
-      assert MockMe.flag_value(:no_flag) == :bogus
+      assert MockMe.current_route_flag(:no_flag) == :bogus
     end
 
     test "reset_flags/0" do
       assert MockMe.set_response(:test_me, :wipe_me)
 
-      assert MockMe.flag_value(:test_me) == :wipe_me
+      assert MockMe.current_route_flag(:test_me) == :wipe_me
 
       assert MockMe.reset_flags()
-      assert MockMe.flag_value(:test_me) == :success
+
+      assert %MockMe.ResponseNotSetError{} = MockMe.current_route_flag(:test_me)
     end
   end
 
-  # Need to write the actual integration tests
   describe "integrations with test endpoints" do
     test "getting a success repsonse" do
       assert MockMe.set_response(:test_me, :success)

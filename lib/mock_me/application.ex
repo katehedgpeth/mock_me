@@ -7,7 +7,7 @@ defmodule MockMe.Application do
 
   def start(_type, _args) do
     children = [
-      {MockMe.State, [%{}]},
+      {MockMe.State, %MockMe.State{}},
       {DynamicSupervisor, strategy: :one_for_one, name: MockMe.DynamicSupervisor}
     ]
 

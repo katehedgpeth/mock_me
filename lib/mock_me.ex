@@ -138,7 +138,6 @@ defmodule MockMe do
   ```
   """
 
-  alias MockMe.Route
   alias MockMe.State
 
   @doc """
@@ -166,10 +165,7 @@ defmodule MockMe do
   ```
   """
   def add_routes(routes) do
-    Enum.each(routes, fn route ->
-      add_route(route)
-    end)
-
+    State.add_routes(routes)
     reset_flags()
   end
 
@@ -177,7 +173,7 @@ defmodule MockMe do
   Used to get the defined routes from state.
   """
   def routes do
-    get_state()[:routes]
+    State.routes()
   end
 
   @doc """
@@ -190,9 +186,11 @@ defmodule MockMe do
   The response with the defined `:flag` will be returned when the endpoint is called.
   """
   def set_response(route_name, response_flag) do
-    Agent.update(State, fn state ->
-      %{state | cases: Map.put(state[:cases], route_name, response_flag)}
-    end)
+    State.set_route_flag(route_name, response_flag)
+  end
+
+  def current_route_flag(route_name) do
+    State.current_route_flag(route_name)
   end
 
   @doc """
@@ -207,50 +205,16 @@ defmodule MockMe do
   ```
   """
   def reset_flags do
-    Agent.update(State, fn state ->
-      %{state | cases: get_test_cases_from_routes(state[:routes])}
-    end)
-  end
-
-  @doc """
-  Called inside each endoint to determine which response to return.
-  You should never need to call this in your code except in the case of troubleshooting.
-  """
-  @spec flag_value(any) :: atom()
-  def flag_value(name) do
-    Agent.get(State, fn state ->
-      Map.get(state[:cases], name)
-    end)
+    State.reset_flags()
   end
 
   @doc """
   A convienience function to view the state of the mocks.
   Primarily used for troubleshooting. You shouldn't need this in any of your tests.
   """
-  @spec get_state :: map()
+  @spec get_state :: State.t()
   def get_state do
-    Agent.get(State, fn state -> state end)
-  end
-
-  defp get_test_cases_from_routes(routes) do
-    case routes do
-      nil ->
-        %{}
-
-      routes ->
-        Enum.reduce(routes, %{}, fn route, acc ->
-          Map.put(acc, route.name, get_default_flag(route))
-        end)
-    end
-  end
-
-  defp get_default_flag(route) do
-    if Enum.empty?(route.responses) do
-      :success
-    else
-      res = route.responses |> List.first()
-      res.flag
-    end
+    State.get_state()
   end
 
   @doc """
@@ -294,7 +258,7 @@ defmodule MockMe do
         plug(:match)
         plug(:dispatch)
 
-        Enum.each(MockMe.routes(), fn route ->
+        Enum.each(MockMe.routes(), fn {_name, route} ->
           match(route.path, via: route.method, to: ResponsePlug, assigns: %{route: route})
         end)
 
@@ -302,11 +266,5 @@ defmodule MockMe do
       end
 
     Module.create(MockMe.Server, contents, Macro.Env.location(__ENV__))
-  end
-
-  defp add_route(%Route{} = route) do
-    Agent.update(State, fn state ->
-      %{state | routes: [route | state[:routes]]}
-    end)
   end
 end

@@ -18,6 +18,17 @@ defmodule MockMe.Response do
     `cookies` is an array of tuples with the name, value and options which follow the signature of `Plug.Conn.set_resp_cookie`
     `{"my-cookie", %{user_id: user.id}, sign: true}`
   """
+
+  @type t :: %__MODULE__{
+          flag: atom(),
+          body: String.t(),
+          headers: List.t({String.t(), String.t()}),
+          cookies: List.t({String.t(), Map.t(), Keyword.t()}),
+          status_code: integer()
+        }
+
+  @type flag() :: atom() | {:timeout, integer()}
+
   @enforce_keys [:flag, :body]
   defstruct [
     :flag,
