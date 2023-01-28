@@ -1,4 +1,5 @@
 defmodule MockMe do
+  @default_port 9081
   @moduledoc """
   MockMe is a simple mock server used to mock out your third party services in your tests. Unlike many mocking
   solutions, MockMe starts a real HTTP server and serves real static responses which may be toggled easily using
@@ -239,9 +240,11 @@ defmodule MockMe do
         {Plug.Cowboy,
          scheme: :http,
          plug: MockMe.Server,
-         options: [port: Application.get_env(:mock_me, :port, 9081)]}
+         options: [port: Application.get_env(:mock_me, :port, @default_port)]}
       )
   end
+
+  def default_port, do: @default_port
 
   defp build_server do
     contents =

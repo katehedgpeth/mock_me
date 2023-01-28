@@ -5,6 +5,23 @@ defmodule MockMeTest do
 
   @moduletag :capture_log
 
+  defp base_url do
+    port = Application.get_env(:mock_me, :port, MockMe.default_port())
+    "http://localhost:#{port}"
+  end
+
+  defp route_url(route_name) do
+    path = get_route_path(route_name)
+    base_url() |> Path.join(path)
+  end
+
+  defp get_route_path(route_name) do
+    MockMe.State.get_state()
+    |> Map.fetch!(:routes)
+    |> Map.fetch!(route_name)
+    |> Map.fetch!(:path)
+  end
+
   describe "state agent" do
     test "has started" do
       assert MockMe.set_response(:jwt, :failure)
@@ -39,7 +56,9 @@ defmodule MockMeTest do
       assert MockMe.set_response(:test_me, :success)
 
       assert {:ok, %HTTPoison.Response{status_code: 200, body: resp_body}} =
-               HTTPoison.get("http://localhost:9081/test-path")
+               :test_me
+               |> route_url()
+               |> HTTPoison.get()
 
       assert "test-body" == resp_body
     end
@@ -48,7 +67,9 @@ defmodule MockMeTest do
       assert MockMe.set_response(:test_me, :failure)
 
       assert {:ok, %HTTPoison.Response{status_code: 422, body: resp_body}} =
-               HTTPoison.get("http://localhost:9081/test-path")
+               :test_me
+               |> route_url()
+               |> HTTPoison.get()
 
       assert "test-failure-body" == resp_body
     end
@@ -57,7 +78,9 @@ defmodule MockMeTest do
       assert MockMe.set_response(:test_me, :invalid_flag)
 
       assert {:ok, %HTTPoison.Response{status_code: 500, body: resp_body}} =
-               HTTPoison.get("http://localhost:9081/test-path")
+               :test_me
+               |> route_url()
+               |> HTTPoison.get()
 
       body = Jason.decode!(resp_body)
       assert body["data"] != nil
@@ -67,7 +90,9 @@ defmodule MockMeTest do
       assert MockMe.set_response(:test_me, :invalid_flag)
 
       assert {:ok, %HTTPoison.Response{status_code: 404, body: resp_body}} =
-               HTTPoison.get("http://localhost:9081/not-defined")
+               base_url()
+               |> Path.join("not-defined")
+               |> HTTPoison.get()
 
       assert resp_body =~ "has not been defined"
     end
@@ -76,7 +101,9 @@ defmodule MockMeTest do
       assert MockMe.set_response(:test_headers, :success)
 
       assert {:ok, %HTTPoison.Response{status_code: 200, headers: headers}} =
-               HTTPoison.get("http://localhost:9081/test-headers")
+               :test_headers
+               |> route_url()
+               |> HTTPoison.get()
 
       assert Enum.any?(headers, fn item -> {"content-type", "application/xml"} == item end)
     end
@@ -85,7 +112,9 @@ defmodule MockMeTest do
       assert MockMe.set_response(:test_cookies, :success)
 
       assert {:ok, %HTTPoison.Response{status_code: 200, headers: headers}} =
-               HTTPoison.get("http://localhost:9081/test-cookies")
+               :test_cookies
+               |> route_url()
+               |> HTTPoison.get()
 
       assert Enum.any?(headers, fn item ->
                case item do
