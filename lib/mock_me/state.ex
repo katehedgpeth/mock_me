@@ -42,22 +42,8 @@ defmodule MockMe.State do
   defstruct routes: %{},
             flags: %{}
 
-  # def child_spec([]) do
-  #   %{
-  #     id: __MODULE__,
-  #     start:
-  #       {__MODULE__, :start_link,
-  #        [
-  #          %__MODULE__{}
-  #        ]},
-  #     restart: :permanent,
-  #     shutdown: 5000,
-  #     type: :worker
-  #   }
-  # end
-
-  def start_link(%__MODULE__{} = initial_state) do
-    Agent.start_link(fn -> initial_state end, name: __MODULE__)
+  def start_link(_) do
+    Agent.start_link(fn -> %__MODULE__{} end, name: __MODULE__)
   end
 
   def routes do

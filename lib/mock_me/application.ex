@@ -4,10 +4,11 @@ defmodule MockMe.Application do
   @moduledoc false
 
   use Application
+  require MockMe.State
 
   def start(_type, _args) do
     children = [
-      {MockMe.State, %MockMe.State{}},
+      {MockMe.State, []},
       {DynamicSupervisor, strategy: :one_for_one, name: MockMe.DynamicSupervisor}
     ]
 
