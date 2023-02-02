@@ -139,7 +139,7 @@ defmodule MockMe do
   ```
   """
 
-  alias MockMe.State
+  alias MockMe.{Response, State}
 
   @doc """
   Add routes to your server. This goes in your `test/test_helper.exs` file.
@@ -190,10 +190,12 @@ defmodule MockMe do
     State.set_route_flag(route_name, response_flag)
   end
 
+  @spec current_route_flag(atom) :: atom | MockMe.ResponseNotSetError.t()
   def current_route_flag(route_name) do
     State.current_route_flag(route_name)
   end
 
+  @spec reset_flags :: :ok
   @doc """
   Used to reset the test state to the config defaults once tests in a module have been performed or before tests are run.
 
@@ -218,6 +220,7 @@ defmodule MockMe do
     State.get_state()
   end
 
+  @spec start :: :ok
   @doc """
   Start the application state in the unit tests.
   This prepares the state to accept the configuration for your mocked routes.
@@ -228,6 +231,7 @@ defmodule MockMe do
     MockMe.reset_flags()
   end
 
+  @spec start_server :: {:ok, pid}
   @doc """
   Used to start the mock server after routes have been added to state using `add_routes/1`
   """
@@ -242,6 +246,17 @@ defmodule MockMe do
          plug: MockMe.Server,
          options: [port: Application.get_env(:mock_me, :port, @default_port)]}
       )
+  end
+
+  @spec add_response(atom, MockMe.Response.t()) :: :ok
+  def add_response(route_name, %Response{} = response) when is_atom(route_name) do
+    State.add_route_response(route_name, response)
+  end
+
+  @spec remove_response(atom, atom) :: :ok
+  def remove_response(route_name, response_name)
+      when is_atom(route_name) and is_atom(response_name) do
+    State.remove_route_response(route_name, response_name)
   end
 
   def default_port, do: @default_port

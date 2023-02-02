@@ -26,6 +26,8 @@ defmodule MockMe.State do
   """
   use Agent, shutdown: 5000
 
+  alias MockMe.ResponseNotDefinedError
+  alias MockMe.RouteNotDefinedError
   alias MockMe.{Route, Response}
 
   @type t() :: %__MODULE__{
@@ -66,7 +68,7 @@ defmodule MockMe.State do
   Called inside each endoint to determine which response to return.
   You should never need to call this in your code except in the case of troubleshooting.
   """
-  @spec current_route_flag(atom()) :: atom()
+  @spec current_route_flag(atom()) :: atom() | ResponseNotSetError.t()
   def current_route_flag(route_name) do
     Agent.get(__MODULE__, &do_current_route_flag(&1, route_name))
   end
@@ -76,6 +78,8 @@ defmodule MockMe.State do
   end
 
   def set_route_flag(route_name, flag) do
+    :ok = verify_route_flag_exists(route_name, flag)
+
     Agent.update(__MODULE__, &do_set_route_flag(&1, route_name, flag))
   end
 
@@ -87,8 +91,24 @@ defmodule MockMe.State do
     Enum.each(routes, &add_route/1)
   end
 
+  def reset_routes() do
+    Agent.update(__MODULE__, &do_reset_routes/1)
+  end
+
   def add_route(%Route{} = route) do
     Agent.update(__MODULE__, &do_add_route(&1, route))
+  end
+
+  def add_route_response(route_name, %Response{} = response) do
+    Agent.update(__MODULE__, &do_add_route_response(&1, route_name, response))
+  end
+
+  def remove_route_response(route_name, response_name) do
+    Agent.update(__MODULE__, &do_remove_route_response(&1, route_name, response_name))
+  end
+
+  defp do_reset_routes(%__MODULE__{} = state) do
+    %{state | routes: %{}}
   end
 
   defp do_add_route(%__MODULE__{routes: routes} = state, %Route{} = route) do
@@ -127,5 +147,48 @@ defmodule MockMe.State do
 
   defp do_reset_flags(%__MODULE__{} = state) do
     %{state | flags: %{}}
+  end
+
+  defp do_add_route_response(%__MODULE__{} = state, route_name, response) do
+    routes =
+      Map.update!(
+        state.routes,
+        route_name,
+        &add_response_to_route(&1, response)
+      )
+
+    %{state | routes: routes}
+  end
+
+  defp add_response_to_route(%Route{} = route, response) do
+    %{route | responses: Map.put(route.responses, response.flag, response)}
+  end
+
+  defp do_remove_route_response(%__MODULE__{} = state, route_name, response_name) do
+    routes = Map.update!(state.routes, route_name, &remove_response_from_route(&1, response_name))
+    %{state | routes: routes}
+  end
+
+  defp remove_response_from_route(%Route{} = route, response_name) do
+    %{route | responses: Map.delete(route.responses, response_name)}
+  end
+
+  defp verify_route_flag_exists(_, {:timeout, milliseconds}) when is_integer(milliseconds) do
+    :ok
+  end
+
+  defp verify_route_flag_exists(route_name, flag) do
+    # raise if route or response has not been defined
+    case routes() |> Map.fetch(route_name) do
+      :error ->
+        raise RouteNotDefinedError, route_name: route_name
+
+      {:ok, %Route{responses: responses}} ->
+        if Map.fetch(responses, flag) === :error do
+          raise ResponseNotDefinedError, route_name: route_name, flag: flag
+        end
+    end
+
+    :ok
   end
 end

@@ -7,6 +7,7 @@ defmodule MockMe.MixProject do
       app: :mock_me,
       version: "0.2.0",
       elixir: "~> 1.10",
+      elixirc_paths: Mix.env() |> elixirc_paths(),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       name: "MockMe",
@@ -23,6 +24,9 @@ defmodule MockMe.MixProject do
       mod: {MockMe.Application, []}
     ]
   end
+
+  defp elixirc_paths(:test), do: ["test/fixtures"] ++ elixirc_paths(:prod)
+  defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do

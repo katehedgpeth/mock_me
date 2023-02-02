@@ -5,32 +5,58 @@ defmodule MockMe.ResponsePlug do
   import Plug.Conn
   require Logger
   require Jason
-  alias MockMe.{State, Response, Route}
+  alias Plug.Conn
+  alias MockMe.{State, Response, Route, ResponseNotSetError}
 
   def init(options), do: options
 
   def call(
-        %{
-          assigns: %{
-            route: %Route{name: name, content_type: content_type, responses: responses}
-          }
-        } = conn,
+        %{assigns: %{route: %Route{} = route}} = conn,
         _opts
       ) do
-    conn = put_resp_header(conn, "content-type", content_type)
-    current_flag = State.current_route_flag(name)
+    conn = put_resp_header(conn, "content-type", route.content_type)
 
-    responses
-    |> Map.fetch(current_flag)
+    route.name
+    |> State.current_route_flag()
+    |> do_call(conn)
+  end
+
+  def call(conn, _opts) do
+    message =
+      "the route #{conn.method} `#{conn.request_path}` has not been defined in your configuration"
+
+    Logger.error(message)
+
+    send_resp(conn, 404, message)
+  end
+
+  defp do_call(%ResponseNotSetError{} = error, conn) do
+    send_resp(conn, 500, Jason.encode!(%{error: Map.from_struct(error)}))
+  end
+
+  defp do_call({:timeout, milliseconds}, conn) do
+    :timer.sleep(milliseconds)
+    do_call(:timeout, conn)
+  end
+
+  defp do_call(
+         flag,
+         %Conn{assigns: %{route: %Route{name: name}}} = conn
+       )
+       when is_atom(flag) do
+    State.routes()
+    |> Map.fetch!(name)
+    |> Map.fetch!(:responses)
+    |> Map.fetch(flag)
     |> case do
       :error ->
-        Logger.error("No mock for test_case [#{name}, #{current_flag}]")
+        Logger.error("No mock for test_case [:#{name}, :#{flag}]")
 
         send_resp(
           conn,
           500,
           Jason.encode!(%{
-            data: %{message: "Mock not found", route_name: name, flag: current_flag}
+            data: %{message: "Mock not found", route_name: name, flag: flag}
           })
         )
 
@@ -43,17 +69,6 @@ defmodule MockMe.ResponsePlug do
           response.body
         )
     end
-  end
-
-  def call(conn, _opts) do
-    message = "the route `#{conn.request_path}` has not been defined in your configuration"
-    Logger.error(message)
-
-    send_resp(
-      conn,
-      404,
-      message
-    )
   end
 
   def set_response_headers(conn, %{headers: []}), do: conn
